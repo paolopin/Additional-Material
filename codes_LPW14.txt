@@ -1,0 +1,500 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% The whole program can be run in Matlab 7.0 and 
+% its above version.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%consistency%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This program is the main process used for getting 
+% the final results of "Kendall Tau" mainly shown 
+% in Figure 3.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% The generation (function) is used for generate
+% the networks randomly.
+% The bam (function) means the method proposed 
+% in our paper with different beta values.
+% The nbm (function) means the maximum enginvalue
+% method.
+% The am (function) means the average method.
+% The fminunc (function) and sumf (function) is 
+% used for solve the model proposed in Hochbaum 
+% et al.(2011).
+% The corr (function) is used for calculating the 
+% Kendall Tau.
+% m is the number of goods, n is the number of
+% evaluators, z is 5 in our paper, and nc is the 
+% simulation times.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [com,stda,coma]=fz(m,n,z,nc)
+com(1:9,1:13)=0;
+stda(1:9,1:13)=0;
+coma(1:13,1:9,1:nc)=0;
+j=1;
+x0(1:m)=0;
+assignin('base','m',m); 
+assignin('base','n',n); 
+for p=0.4:0.05:1
+    for nn=1:nc
+        [v_v,cv,m,n,z]=generation(m,n,z,p);
+'or     [v_v,cv,m,n,z]=generation1(m,n,z,p);   ' which reflect the different rating distributions
+        assignin('base','cv',cv);
+        rv=nbm(v_v,m,z);
+        cgve=eigs(v_v);
+        bav01=bam(0.5*(cgve(1)+n),v_v,m,z);
+        bav05=bam(n,v_v,m,z);
+        bav1=bam(5*n,v_v,m,z);
+        bav2=bam(10*n,v_v,m,z);
+        bav3=bam(25*n,v_v,m,z);
+        bav4=bam(50*n,v_v,m,z);
+        av=am(cv,m,z);
+        ms=fminunc('sumf',x0);
+        %%%%%%%%%%%%%%%%%%%%%%% 
+        coma(j,1,nn)=corr(cv,rv,m,n);
+        coma(j,2,nn)=corr(cv,bav01,m,n);
+        coma(j,3,nn)=corr(cv,bav05,m,n);
+        coma(j,4,nn)=corr(cv,bav1,m,n);
+        coma(j,5,nn)=corr(cv,bav2,m,n);
+        coma(j,6,nn)=corr(cv,bav3,m,n);
+        coma(j,7,nn)=corr(cv,bav4,m,n);
+        coma(j,8,nn)=corr(cv,av,m,n);
+        coma(j,9,nn)=corr(cv,ms,m,n);
+    end
+    for i=1:9
+        com(i,j)=sum(coma(j,i,:))/nc;
+        stda(i,j)=std(coma(j,i,:));
+    end
+    j=j+1;
+ end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the generation (function)
+% which is used for generating the networks randomly.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% m is the number of products.
+% n is the number of consumers.
+% z is an interger which reflects the score scale.
+% p is the probability of products by rated 
+% by these consumers.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [v_v,cv,m,n,z]=generation(m,n,z,p)
+v_v(1:z*m,1:z*m)=0;
+cv(1:m,1:n)=0;
+for i=1:n
+v(1:z*m)=0;
+w(1:z*m,1:z*m)=0;
+k=0;
+  while k<=m-1
+      if rand()<p
+          k1=unidrnd(z);
+          v(z*k+k1)=1;
+          cv(k+1,i)=k1;
+          k=k+1;
+      else
+          k=k+1;
+      end
+  end
+  if sum(v)==0 || sum(v)==1
+      w(1:z*m,1:z*m)=0;
+  else
+      w=v'*v/(sum(v)-1);
+  end
+  v_v=v_v+w;
+end
+v_v=v_v-diag(diag(v_v));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the generation1 (function)
+% which is used for generating the networks randomly,
+% and the score from the raters with different rating
+% distributions.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% m is the number of products.
+% n is the number of consumers.
+% z is an interger which reflects the score scale.
+% p is the probability of products by rated 
+% by these consumers.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [v_v,cv,m,n,z]=generation1(m,n,z,p)
+v_v(1:z*m,1:z*m)=0;
+cv(1:m,1:n)=0;
+for i=1:n
+v(1:z*m)=0;
+w(1:z*m,1:z*m)=0;
+k=0;
+  while k<=m-1
+      if rand()<p
+        kind=rand();
+          if kind<0.5
+             if rand()<0.1
+                k1=1
+             elseif rand()<0.2
+                k1=2
+             elseif rand()<0.4
+                k1=3
+             elseif rand()<0.7
+                k1=4
+             elseif rand()<1.0
+                k1=5
+             end
+          elseif kind<0.7
+             k1=unidrnd(z);
+          else
+             if rand()<0.3
+                k1=1
+             elseif rand()<0.6
+                k1=2
+             elseif rand()<0.8
+                k1=3
+             elseif rand()<0.9
+                k1=4
+             elseif rand()<1.0
+                k1=5
+             end
+          end         
+          v(z*k+k1)=1;
+          cv(k+1,i)=k1;
+          k=k+1;
+      else
+          k=k+1;
+      end
+  end
+  if sum(v)==0 || sum(v)==1
+      w(1:z*m,1:z*m)=0;
+  else
+      w=v'*v/(sum(v)-1);
+  end
+  v_v=v_v+w;
+end
+v_v=v_v-diag(diag(v_v));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the bam (function) which is
+% the main process of our method present in the paper.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function bav=bam(beta,v_v,m,z)
+II(1:m*z)=1;
+I=eye(m*z);
+cc=1/beta;
+ww=inv(I-cc*v_v)*v_v*II';
+bv(1:m)=0;
+% m has been defined in the above function
+for ii=1:m
+    a=0;
+    b=0;
+    for mm=1:z
+        a=a+mm*ww(z*ii-z+mm);
+        b=b+ww(z*ii-z+mm);
+    end
+    bv(ii)=a/b;
+end
+bv=bv';
+bav=round(1000*bv)/1000;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the nbm (function) which is
+% the process of the maximum enginvalue centrality 
+% method.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function rv=nbm(v_v,m,z)
+% v_v is the output of the first generation function
+rv(1:m)=0;
+% m has been defined in the above function
+[va,d]=eigs(v_v);
+for ii=1:m
+    a=0;
+    b=0;
+    for mm=1:z
+        a=a+mm*va(z*ii-z+mm,1);
+        b=b+va(z*ii-z+mm,1);
+    end
+    rv(ii)=a/b;
+end
+rv=rv';
+rv=round(1000*rv)/1000;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the am (function) which is
+% the main process of average method.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function av=am(cv,m,z)
+av(1:m)=0;
+for ii=1:m
+    av(ii)=sum(cv(ii,:))/length(find(cv(ii,:))~=0);
+end
+av=av';
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the sumf (function) which 
+% is used for froming the objective function in the 
+% mode of Hochbaum et al.(2011).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function f=sumf(x)
+cvv=evalin('base','cv'); % cvv=evalin('base','rate')
+mm=evalin('base','m');
+nn=evalin('base','n');
+i=1;
+j=1;
+y1=0;
+y2=0;
+for k=1:nn
+    for i=1:mm
+        if cvv(i,k)~=0
+            y2=y2+(x(i)-cvv(i,k))^2;
+            for j=i+1:mm
+                if cvv(j,k)~=0
+                    y1=y1+((x(i)-x(j))-(cvv(i,k)-cvv(j,k)))^2;
+                else
+                    y1=y1;
+                end
+            end
+        else
+            y2=y2;
+        end
+    end
+end
+f=y1+y2;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of the corr (function) which 
+% is used for calculating the Kendall Tau.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function com=corr(cv,res,m,n)
+Cn(1:n)=0;
+Cnbm(1:m,1:m)=0;
+for k=1:n
+    cvk=cv(:,k);
+    for i=1:m
+        for j=i+1:m
+            if (cvk(i)==0 || cvk(j)==0)
+                Cnbm(i,j)=0.5;
+            elseif (cvk(i)>cvk(j) && res(i)>res(j))
+                Cnbm (i,j)=1;
+            elseif (cvk(i)<cvk(j) && res(i)<res(j))
+                Cnbm (i,j)=1;
+            elseif (cvk(i)==cvk(j) && res(i)==res(j))
+                Cnbm (i,j)=1;
+            else
+                Cnbm (i,j)=0;
+            end
+        end
+    end
+    Cn(k)=4*sum(sum(Cnbm))/(m*(m-1))-1;
+end
+com=sum(Cn)/n;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%robustness%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This is the main process used for testing the 
+% robustness of our method when fake data is introduced.
+% The main result is shown in Figure 4.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% The generation (function) is the same with that in
+% consistency part.
+% The original (function) is used for getting the 
+% result before the fake data is introduced.
+% The fake (function) is used for getting the results
+% when the fake data is introduced gradually.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rest_mean(1:9,1:10)=0;
+rest_std(1:9,1:10)=0;
+ for j=1:50
+  m=50;n=10;z=5;p=0.7;
+ [v_v,cv,m,n,z]=generation(m,n,z,p);
+ res=original(cv,v_v,m,n,z);
+ result=fake(cv,v_v,res,n,m,z);
+   for s=1:9
+       for t=1:10
+           a(s,t,j)=result(s,t);
+       end
+   end
+ end
+ for s_s=1:9
+     for t_t=1:10
+     rest_mean(s_s,t_t)=mean(a(s_s,t_t,:));
+     rest_std(s_s,t_t)=std(a(s_s,t_t,:));
+     end
+ end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of original (function) which is 
+% used for getting the results before the fake data is 
+% introduced
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function res=original(cv,v_v,m,n,z)
+reso(1:m,1:9)=0;
+res(1:9)=0;
+assignin('base','m',m); 
+assignin('base','n',n);
+assignin('base','cv',cv);
+x0(1:m)=0;
+reso(:,1)=nbm(v_v,m,z);
+res(1)=corr(cv,reso(:,1),m,n);
+eimat=eigs(v_v);
+reso(:,2)=bam(0.5*(n+eimat(1)),v_v,m,z);
+res(2)=corr(cv,reso(:,2),m,n);
+reso(:,3)=bam(n,v_v,m,z);
+res(3)=corr(cv,reso(:,3),m,n);
+reso(:,4)=bam(5*n,v_v,m,z);
+res(4)=corr(cv,reso(:,4),m,n);
+reso(:,5)=bam(10*n,v_v,m,z);
+res(5)=corr(cv,reso(:,5),m,n);
+reso(:,6)=bam(25*n,v_v,m,z);
+res(6)=corr(cv,reso(:,6),m,n);
+reso(:,7)=bam(50*n,v_v,m,z);
+res(7)=corr(cv,reso(:,7),m,n);
+reso(:,8)=am(cv,m,z);
+res(8)=corr(cv,reso(:,8),m,n);
+reso(:,9)=fminunc('sumf',x0);
+res(9)=corr(cv,reso(:,9),m,n);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of fake (function) which is used
+% for getting the results when the fake data is 
+% introduced gradually
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function result=fake(cv,v_v,res,n,m,z)
+n0=n;
+nn=n;
+result(1:9,1:floor(n0))=0;
+cv0=cv;
+x0(1:m)=0;
+v(5*m)=0;
+for i=1:floor(n0)
+    nn=nn+1;
+    for j=1:floor(m/16)
+    cv(j,nn)=5;
+    cv(m-j,nn)=1;
+    v(5*j)=1;
+    v(5*(m-j)+1)=1;
+    end
+    v_v=v_v+v'*v/(m-1);
+    v_v=v_v-diag(diag(v_v));
+    assignin('base','m',m); 
+    assignin('base','n',nn);
+    assignin('base','cv',cv);
+    rv=nbm(v_v,m,z);
+    eimat=eigs(v_v);
+    bav01=bam(0.5*(eimat(1)+n+i),v_v,m,z);
+    bav05=bam(n+i,v_v,m,z); 
+    bav1=bam(5*(n+i),v_v,m,z);
+    bav2=bam(10*(n+i),v_v,m,z);
+    bav3=bam(25*(n+i),v_v,m,z);
+    bav4=bam(50*(n+i),v_v,m,z);
+    av=am(cv,m,z);
+    msv=fminunc('sumf',x0);
+    msv=msv';
+    result(1,i)=-abs(res(1)-corr(cv0,rv,m,n0));
+    result(2,i)=-abs(res(2)-corr(cv0,bav01,m,n0));
+    result(3,i)=-abs(res(3)-corr(cv0,bav05,m,n0));
+    result(4,i)=-abs(res(4)-corr(cv0,bav1,m,n0));
+    result(5,i)=-abs(res(5)-corr(cv0,bav2,m,n0));
+    result(6,i)=-abs(res(6)-corr(cv0,bav3,m,n0));
+    result(7,i)=-abs(res(7)-corr(cv0,bav4,m,n0));
+    result(8,i)=-abs(res(8)-corr(cv0,av,m,n0));
+    result(9,i)=-abs(res(9)-corr(cv0,msv,m,n0));
+  end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%real data%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This program is used for load the data and calurate 
+% kendall tau with different methods and beta values
+% The Table 10 mainly reflect the results
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% The form (function) is used for form the matrix based
+% on the original data as introduced in our paper
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+load u.data
+data=u(:,1:3);
+rate(1:1682,1:943)=0;
+for i=1:100000
+rate(data(i,2),data(i,1))=data(i,3);
+end
+clear i data u;
+m=1682;
+n=943;
+z=5;
+x0(1:m)=0;
+v_v=form(rate);
+assignin('base','rate',rate);
+rv=nbm(v_v,m,z);
+cgve=eigs(v_v);
+bav01=bam(0.5*(cgve(1)+n),v_v,m,z);
+bav05=bam(n,v_v,m,z);
+bav1=bam(5*n,v_v,m,z);
+bav2=bam(10*n,v_v,m,z);
+bav3=bam(25*n,v_v,m,z);
+bav4=bam(50*n,v_v,m,z);
+av=am(rate,m,z);
+ms=fminunc('sumf',x0);
+%%%%
+com_1=corr(rate,rv,m,n);
+com_2=corr(rate,bav01,m,n);
+com_3=corr(rate,bav05,m,n);
+com_4=corr(rate,bav1,m,n);
+com_5=corr(rate,bav2,m,n);
+com_6=corr(rate,bav3,m,n);
+com_7=corr(rate,bav4,m,n);
+com_8=corr(rate,av,m,n);
+com_9=corr(rate,ms,m,n);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Here is the program of form (function)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function v_v=form(rate)
+v_v(1:5*1682,1:5*1682)=0;
+for k=1:943
+v(1:5*1682)=0;
+w(1:5*1682,1:5*1682)=0;
+j=1;
+   while j<=1682
+      if rate(j,k)~=0
+          v(5*(j-1)+rate(j,k))=1;
+          j=j+1;
+      else
+          j=j+1;
+      end
+   end
+w=v'*v/sum(v);
+v_v=v_v+w;
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
